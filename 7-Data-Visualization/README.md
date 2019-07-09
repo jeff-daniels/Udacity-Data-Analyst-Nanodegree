@@ -1,10 +1,9 @@
 
-### Project Submission
-# Make Effective Data Visualization
-Jeff Daniels  
-February 12, 2018
+# Data Visualization
+## Make Effective Data Visualization
+Create a data visualization from a data set that tells a story or highlights trends or patterns in the data. Use d3.js to create the visualization. Work should be a reflection of the theory and practice of data visualization, such as visual encodings, design principles, and effective communication.
 
-## Summary:
+## Major League Baseball Player Performance:
 
 This visualization compares height, weight, body mass index (BMI),
 and handedness between Major League Baseball players and American men age
