@@ -29,4 +29,4 @@ Play detective and put your machine learning skills to use by building an algori
 # Data Visualization
 Create a data visualization from a data set that tells a story or highlights trends or patterns in the data. Use d3.js to create the visualization. Work should be a reflection of the theory and practice of data visualization, such as visual encodings, design principles, and effective communication.  
 
- - [Make Effective Data Visualization: Baseball Performance](https://github.com/jeff-daniels/Udacity-Data-Analyst-Nanodegree/blob/master/7-Data-Visualization/index.html)  
+ - Project: [Make Effective Data Visualization: Baseball Performance](https://github.com/jeff-daniels/Udacity-Data-Analyst-Nanodegree/blob/master/7-Data-Visualization/index.html)  
