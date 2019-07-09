@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Baseball Performance</title>
+	<script type="text/javascript" src="https://d3js.org/d3.v4.min.js"></script>
+	<style type="text/css">
+		
+    /*.bar rect {*/
+    /*  fill: steelblue;*/
+    /*}*/
+      
+    .bar text {
+      fill: white;
+      font: 10px sans-serif;
+    }
+      
+    .ticks {
+      font: 10px sans-serif;
+    }
+      
+    .track,
+    .track-inset,
+    .track-overlay {
+      stroke-linecap: round;
+    }
+      
+    .track {
+      stroke: #000;
+      stroke-opacity: 0.3;
+      stroke-width: 10px;
+    }
+      
+    .track-inset {
+      stroke: #ddd;
+      stroke-width: 8px;
+    }
+      
+    .track-overlay {
+      pointer-events: stroke;
+      stroke-width: 50px;
+      stroke: transparent;
+      cursor: crosshair;
+    }
+      
+    .handle {
+      fill: #fff;
+      stroke: #000;
+      stroke-opacity: 0.5;
+      stroke-width: 1.25px;
+    }
+    
+    .line {
+      fill: none;
+      stroke: black;
+      stroke-width: 1.0;
+    }
+	</style>
+</head>
+	
+<body>
+<div id="areaScatter"></div>
+<div id="areaHist"></div>
+<div id="areaUpperHist"></div>
+<div id="areaLowerHist"></div>
+    
+<script type="text/javascript">
+//Width and height
+var w = 600;
+var h = 300;
+var padding = 30;
+
+var dataset, xScale, yScale, sliderScale, xAxis, yAxis;  //Empty, for now
+var handle;
+
+//Source of Data
+var FILENAME = "baseball_data.csv";
+			
+//Declare Independent and Dependent Variables
+var IND_VAR = 'Weight';
+var DEP_VAR = 'Batting Average';
+			
+//Function for converting CSV values from strings to Numbers
+function rowConverter(d) {
+  d["Batting Average"] = +d.avg;
+  d["Handedness"] = d.handedness;
+  d["Height"] = +d.height;
+  d["Home Runs"] = +d.HR;
+  d["Weight"] = +d.weight;
+  d["BMI"] = +d.weight/(d.height*d.height)*703;
+  return d;
+}
+      
+//Create scale functions
+xScale = d3.scaleLinear()
+  .range([padding, w - padding * 2]);
+  
+yScale = d3.scaleLinear()
+  .range([h - padding, padding]);
+  	
+sliderScale = d3.scaleLinear()
+  .range([h-2*padding, 0])
+  .clamp(true);
+    
+//Define X axis
+xAxis = d3.axisBottom()
+  .scale(xScale)
+  .ticks(5);
+  
+//Define Y axis
+yAxis = d3.axisLeft()
+  .scale(yScale)
+	.ticks(5);
+		
+////////// Scatter Plot set up //////////
+
+var allPoints, upperPoints, lowerPoints;
+var scatterPlot = d3.select("#areaScatter")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", h);
+
+////////// histogram set up //////////
+
+var histogram = d3.histogram();
+var numBins = 25;
+
+var histGraph = d3.select("#areaHist")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", h/3);
+  	
+var upperHistGraph = d3.select("#areaUpperHist")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", h/3);
+  	
+var lowerHistGraph = d3.select("#areaLowerHist")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", h/3);
+
+
+////////// load data //////////
+
+d3.csv(FILENAME, rowConverter, function(data) {
+  drawScatter(data);
+  drawSlider(data);
+  drawHistogram(data);
+  dataset = data;
+});
+
+function update(yHandle) {
+  //Change scatterPoints fill color based on Handle Position
+  handle.attr("cy", sliderScale(yHandle));
+  updateScatter(dataset, yHandle);
+  updateHistogram(dataset, yHandle);
+          
+}
+
+function drawScatter(data) {
+  //Update scale domains
+  xScale.domain(d3.extent(data, function(d) {return d[IND_VAR];})).nice();
+  yScale.domain(d3.extent(data, function(d) {return d[DEP_VAR]})).nice();
+  
+  //Create circles
+  allPoints = scatterPlot.selectAll("circle")
+    .data(data)
+    .enter()
+    .append("circle")
+    .attr("cx", function(d) {
+  		return xScale(d[IND_VAR]);
+  	})
+  	.attr("cy", function(d) {
+  	  return yScale(d[DEP_VAR]);
+	  })
+  	.attr("r", 3)
+	  .style("fill", "red")
+	  .style("stroke"," lightgrey" ).style("stroke-width","1px");
+  			
+  //Create X axis
+  scatterPlot.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + (h - padding) + ")")
+  	.call(xAxis);
+  			
+  //Create Y axis
+  yAxis.tickFormat(d3.format(".3f"));
+  			
+  scatterPlot.append("g")
+  	.attr("class", "axis")
+  	.attr("transform", "translate(" + padding + ",0)")
+  	.call(yAxis);
+  	
+  //Create Median Line
+  var scatterMedianLine = scatterPlot.append("line")
+  .attr("class", "scatterMedianLine")
+  .attr("stroke", "black")
+  .attr("x1", padding)
+  .attr("x2", w-padding)
+  .attr("y1", yScale(d3.median(data, function(d) { return d[DEP_VAR]})))
+  .attr("y2", yScale(d3.median(data, function(d) { return d[DEP_VAR]})));
+}
+
+function updateScatter(data, yHandle) {
+  uppperPoints = allPoints
+    .filter(function(d) {
+      return d[DEP_VAR] >= yHandle;
+    })
+    .style("fill", "red");
+          
+  lowerPoints = allPoints
+    .filter(function(d) {
+      return d[DEP_VAR] < yHandle;
+    })
+    .style("fill", "black");
+  
+}
+
+
+function drawSlider(data) {
+
+  //Define Slider
+  var slider = scatterPlot.append("g")
+      .attr("class", "slider")
+      .attr("transform", "translate(" + (w-1.5*padding) + "," + padding + ")");
+  
+  //Create Slider
+
+  sliderScale.domain(d3.extent(data, function(d) {return d[DEP_VAR]})).nice();
+  
+  slider.append("line")
+      .attr("class", "track")
+      .attr("y1", sliderScale.range()[0])
+      .attr("y2", sliderScale.range()[1])
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-inset")
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-overlay")
+      .call(d3.drag()
+        .on("start.interrupt", function() { slider.interrupt(); })
+        .on("start drag", function() { update(sliderScale.invert(d3.event.y)); })
+      );
+  
+  //Create Tick Marks and Labels
+  slider.insert("g", ".track-overlay")
+      .attr("class", "ticks")
+      .attr("transform", "translate(" + 18 + ", 0)")
+    .selectAll("text")
+      .data(sliderScale.ticks(5))
+      .enter().append("text")
+      .attr("y", sliderScale)
+      .attr("text-anchor", "right")
+      .text(function(d) { return d; });
+  
+  //Create handle
+  handle = slider.insert("circle", ".track-overlay")
+      .attr("class", "handle")
+      .attr("r", 9)
+      .attr("cy", sliderScale.range()[0]);
+}
+
+function drawHistogram(data) {
+  
+  // set the parameters for the histogram
+  histogram.value(function(d) {return d[IND_VAR]})
+    .domain(xScale.domain())
+    .thresholds(xScale.ticks(numBins));
+              
+  bins = histogram(data);
+  
+  //Update yScale domain with bins lengths
+  yScale.domain([0, d3.max(bins, function(d) { return d.length; })]);
+  yScale.range([h/3-padding, padding]);
+  
+  //Create 3 sets of bars, upper, lower and all
+  var upperBar = upperHistGraph.selectAll(".upperBar")
+      .data(bins)
+      .enter()
+      .append("g")
+      .attr("class", "upperBar");
+
+  var lowerBar = lowerHistGraph.selectAll(".lowerBar")
+      .data(bins)
+      .enter()
+      .append("g")
+      .attr("class", "lowerBar");
+
+  var allBar = histGraph.selectAll(".allBar")
+      .data(bins)
+      .enter()
+      .append("g")
+      .attr("class", "allBar");
+      
+  //Append rectangles to allBar
+  allBar.append("rect")
+    .attr("x", function(d) { return xScale(d.x0); })
+    .attr("y", function(d) { return yScale(d.length); })
+    .attr("width", xScale(bins[0].x1) - xScale(bins[0].x0) - 2)
+    .attr("height", function(d) { return h/3 - yScale(d.length)-padding; })
+    .attr("fill", "blue")
+    .attr("opacity", 0.2);
+    
+  //Append rectangles to upperBar and lowerBar
+  upperBar.append("rect")
+    .attr("fill", "red")
+    .attr("opacity", 0.5);
+    
+  lowerBar.append("rect")
+    .attr("fill", "black")
+    .attr("opacity", 0.5);
+    			
+  //Create X axis
+  histGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + (h/3 - padding) + ")")
+    .call(xAxis);
+    
+  upperHistGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + (h/3 - padding) + ")")
+    .call(xAxis);
+    
+  lowerHistGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + (h/3 - padding) + ")")
+    .call(xAxis);
+    			
+  //Create Y axis
+  yAxis.tickFormat(d3.format(".0f"));
+    			
+  histGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(" + padding + ",0)")
+    .call(yAxis);
+    
+  upperHistGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(" + padding + ",0)")
+    .call(yAxis);
+    
+  lowerHistGraph.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(" + padding + ",0)")
+    .call(yAxis);
+    
+  //Add median lines
+  
+  var lowerMedianLine = lowerHistGraph.append("line")
+    .attr("class", "lowerMedianLine")
+    .attr("stroke", "black")
+    .attr("x1", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("x2", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("y1", padding)
+    .attr("y2", h/3-padding);
+  
+  var upperMedianLine = upperHistGraph.append("line")
+    .attr("class", "upperMedianLine")
+    .attr("stroke", "red")
+    .attr("x1", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("x2", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("y1", padding)
+    .attr("y2", h/3-padding);
+      
+  var allMedianLine = histGraph.append("line")
+    .attr("class", "allMedianLine")
+    .attr("stroke", "blue")
+    .attr("x1", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("x2", xScale(d3.median(data, function(d) { return d[IND_VAR]})))
+    .attr("y1", padding)
+    .attr("y2", h/3-padding);
+
+}
+
+function updateHistogram(data, yHandle) {
+  
+  var allMedian = d3.median(data, function(d) { return d[IND_VAR] });
+  
+  //Seperate data into upper and lower portions
+  var upperData = data.filter(function(d) {
+    return d[DEP_VAR] >= yHandle;
+  });
+  
+  var lowerData = data.filter(function(d) {
+    return d[DEP_VAR] < yHandle;
+  });
+  
+  //Create bins
+  upperBins = histogram(upperData);
+  lowerBins = histogram(lowerData);
+  
+  //Update yScale domain with bins lengths
+  //yScale.domain([0, d3.max(upperBins, function(d) { return d.length; })]);
+  
+  //Update upperBar
+  upperHistGraph.selectAll(".upperBar")
+    .select("rect")
+    .data(upperBins)
+    .attr("x", function(d) { return xScale(d.x0); })
+    .attr("y", function(d) { return yScale(d.length); })
+    .attr("width", xScale(bins[0].x1) - xScale(bins[0].x0) - 2)
+    .attr("height", function(d) { return h/3 - yScale(d.length)-padding; });
+    
+  //Update upperMedianLine
+  var upperMedian;
+  
+  if (upperData.length > 0)
+    { upperMedian = d3.median(upperData, function(d){ return d[IND_VAR] }); }
+  else {upperMedian = allMedian;};
+  
+  upperHistGraph.select(".upperMedianLine")
+    .attr("x1", xScale(upperMedian))
+    .attr("x2", xScale(upperMedian));
+  
+  //Update yScale domain with bins lengths
+  //yScale.domain([0, d3.max(lowerBins, function(d) { return d.length; })]);
+  
+  //Update lowerBar
+  lowerHistGraph.selectAll(".lowerBar")
+    .select("rect")
+    .data(lowerBins)
+    .attr("x", function(d) { return xScale(d.x0); })
+    .attr("y", function(d) { return yScale(d.length); })
+    .attr("width", xScale(bins[0].x1) - xScale(bins[0].x0) - 2)
+    .attr("height", function(d) { return h/3 - yScale(d.length)-padding; });
+    
+  //Update lowerMedianLine
+  var lowerMedian;
+  if (lowerData.length > 0)
+    { lowerMedian = d3.median(lowerData, function(d){ return d[IND_VAR] }); }
+  else {lowerMedian = allMedian;};
+  
+  lowerHistGraph.select(".lowerMedianLine")
+    .attr("x1", xScale(lowerMedian))
+    .attr("x2", xScale(lowerMedian));
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Baseball Performance</title>
+	<script type="text/javascript" src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="https://unpkg.com/jeezy/lib/jeezy.min.js"></script>
+	<style type="text/css">
+		
+	  independentForm {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+    }
+		
+		dependentForm {
+      position: absolute;
+      left: 300px;
+      top: 10px;
+    }
+    
+    * {
+    box-sizing: border-box;
+    }
+    /* Create two equal columns that floats next to each other */
+    .column {
+        float: left;
+        width: 50%;
+        padding: 10px;
+    }
+    
+    /* Clear floats after the columns */
+    .row:after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+      
+    .bar text {
+      fill: white;
+      font: 10px sans-serif;
+    }
+      
+    .ticks {
+      font: 10px sans-serif;
+    }
+      
+    .track,
+    .track-inset,
+    .track-overlay {
+      stroke-linecap: round;
+    }
+      
+    .track {
+      stroke: #000;
+      stroke-opacity: 0.3;
+      stroke-width: 10px;
+    }
+      
+    .track-inset {
+      stroke: #ddd;
+      stroke-width: 8px;
+    }
+      
+    .track-overlay {
+      pointer-events: stroke;
+      stroke-width: 50px;
+      stroke: transparent;
+      cursor: crosshair;
+    }
+      
+    .handle {
+      fill: #fff;
+      stroke: #000;
+      stroke-opacity: 0.5;
+      stroke-width: 1.25px;
+    }
+    
+    .line {
+      fill: none;
+      stroke: black;
+      stroke-width: 1.0;
+    }
+    
+    #playerTooltip {
+			position: absolute;
+			width: 200px;
+			height: auto;
+			padding: 10px;
+			background-color: yellow;
+			-webkit-border-radius: 10px;
+			-moz-border-radius: 10px;
+			border-radius: 10px;
+			-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			-moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			pointer-events: none;
+		}
+			
+		#playerTooltip.hidden {
+			display: none;
+		}
+			
+		#playerTooltip p {
+			margin: 0;
+			font-family: sans-serif;
+			font-size: 12px;
+			line-height: 14px;
+		}
+    
+    
+		#tooltip {
+			position: absolute;
+			width: 200px;
+			height: auto;
+			padding: 10px;
+			background-color: yellow;
+			-webkit-border-radius: 10px;
+			-moz-border-radius: 10px;
+			border-radius: 10px;
+			-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			-moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			pointer-events: none;
+		}
+			
+		#tooltip.hidden {
+			display: none;
+		}
+			
+		#tooltip p {
+			margin: 0;
+			font-family: sans-serif;
+			font-size: 12px;
+			line-height: 14px;
+		}
+    
+	</style>
+</head>
+	
+<body>
+
+
+
+
+<div class="row">
+  <div class="column" id = "areaScatter"> </div>
+  <div class="column" id = "areaText">
+    <p><strong>Baseball Performance and Physical Characteristics</strong></p>
+    <p id = "handednessBattingAverage">Being Left handed seems to give you a higher batting average</p>
+    <p id = "weightBattingAverage">Players who weigh less have higher batting averages</p>
+    <p id = "heightBattingAverage">Because they are shorter</p>
+    <p id = "bmiBattingAverage">But BMI doesn't affect batting average</p>
+    <p id = "bmiHomeRuns">But it affects home runs</p>
+    <p id = "weightHomeRuns">Weight doesn't affect home runs</p>
+    <p id = "heightHomeRuns">But taller players hit fewer home runs</p>
+    <p id = "zeroHomeRuns">25% have never hit a home run.  They are also taller.</p>
+    <p id = "zeroBattingAverage">23% of players have a batting average of zero.  They too are taller.</p>
+  </div>
+</div>
+
+<div class = "row">
+  <div class = "column" id="areaBox"></div>
+  <div class = "column" id="areaBar">
+  </div>
+
+</div>
+
+<div id="playerTooltip" class="hidden">
+	<p><strong id = "name">Player Name</strong></p>
+	<p><span id="size">100</span></p>
+	<p><span id="stats">100</span></p>
+</div>
+<div id="tooltip" class="hidden">
+	<p><strong id = "title">Important Label Heading</strong></p>
+	<p><span id="value">42</span></p>
+</div>
+
+
+<independentForm>
+	<input type="radio" class = "indPreset" name="i" id = "radio-Height" value="Height" checked="true"> Height
+	<input type="radio"  class = "indPreset" name="i" id = "radio-Weight" value="Weight" > Weight
+	<input type="radio" class = "indPreset" name="i"  id = "radio-BMI" value="BMI" > BMI
+</independentform>
+
+<dependentForm>
+	<input type="radio" class = "depPreset" name="d" id = "radio-BattingAverage" value="Batting Average" checked = "true"> Batting Average
+	<input type="radio" class = "depPreset" name="d" id = "radio-HomeRuns" value="Home Runs" > Home Runs
+</dependentForm>
+  
+<script type="text/javascript">
+//Width and height
+var w = 600;
+var h = 350;
+var padding = 30;
+var barWidth = 30;
+
+//Easy colors accessible via a 10-step ordinal scale
+var colors = d3.scaleOrdinal(d3.schemeCategory10);
+
+var dataset;
+var xScale, yScale, sliderScale, pScale;
+var xAxis, yAxis, sliderAxis;  //Empty, for now
+var handle;
+var yHandle; //Position of handle
+var pHandle; //Percentile of data at handle position
+
+
+//Source of Data
+var fileName = "baseball_data.csv";
+			
+//Declare Independent and Dependent Variables
+var indVar = 'Height';
+var depVar = 'Batting Average';
+
+//Declare data selections for filtering
+var dataSelections = ["Lower", "Upper", "All"];
+
+//Create scale functions
+xScale = d3.scaleLinear()
+  .range([padding, w - padding * 2]);
+  
+yScale = d3.scaleLinear()
+  .range([h - padding, padding]);
+  	
+sliderScale = d3.scaleLinear()
+  .range([h-2*padding, 0])
+  .clamp(true);
+  
+pScale = d3.scaleQuantile()
+  .range(d3.range(100));
+    
+//Define X axis
+xAxis = d3.axisBottom()
+  .scale(xScale)
+  .ticks(5);
+  
+//Define Y axis
+yAxis = d3.axisLeft()
+  .scale(yScale)
+	.ticks(5);
+	
+//Define slider axis
+sliderAxis = d3.axisRight()
+  .scale(sliderScale)
+  .ticks(5)
+		
+////////// Scatter Plot set up //////////
+var heightScatterPlot = 350;
+var scatterPlot = d3.select("#areaScatter")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", heightScatterPlot);
+
+////////// Box Plot set up //////////
+var heightBoxPlot = 125;
+
+var boxPlot = d3.select("#areaBox")
+  	.append("svg")
+  	.attr("width", w)
+  	.attr("height", heightBoxPlot);
+  	
+////////// Bar Plot set up //////////
+var heightBarPlot = 125;
+
+var barPlot = d3.select("#areaBar")
+    .append("svg")
+    .attr("width", w)
+    .attr("height", heightBarPlot)
+    .append("g");
+
+////////// load data //////////
+d3.csv(fileName, rowConverter, function(data) {
+  dataset = data;
+  drawScatterPlot(dataset);
+  drawBoxPlot(createBoxPlotData(dataset));
+  drawBarPlot(createBarPlotData(dataset));
+  introduction();
+});
+
+///////// Radio button change /////////
+d3.selectAll(".indPreset")
+  .on("click", function() {
+    indVar = d3.select(this).node().value;
+    update(yHandle);
+    }
+  );
+  
+d3.selectAll(".depPreset")
+  .on("click", function() {
+    depVar = d3.select(this).node().value;
+    update(yHandle);
+    }
+  );
+
+///////// Clicks on Paragraphs /////////
+
+d3.selectAll("#handednessBattingAverage")
+  .on("click", function() {
+    d3.select("#radio-Height").property("checked", true);
+    d3.select("#radio-BattingAverage").property("checked", true);
+    depVar = "Batting Average";
+    indVar = "Height";
+    update(yHandle);
+    moveHandle(dataset, 0.5);
+
+  });
+
+d3.selectAll("#weightBattingAverage")
+  .on("click", function() {
+    d3.select("#radio-Weight").property("checked", true);
+    d3.select("#radio-BattingAverage").property("checked", true);
+    indVar = "Weight";
+    depVar = "Batting Average";
+    update(yHandle);
+    moveHandle(dataset, 0.5)
+  });
+  
+d3.selectAll("#heightBattingAverage")
+  .on("click", function() {
+    d3.select("#radio-Height").property("checked", true);
+    d3.select("#radio-BattingAverage").property("checked", true);
+    indVar = "Height";
+    depVar = "Batting Average";
+    update(yHandle);
+    moveHandle(dataset, 0.5)  });
+
+d3.selectAll("#bmiBattingAverage")
+  .on("click", function() {
+    d3.select("#radio-BMI").property("checked", true);
+    d3.select("#radio-BattingAverage").property("checked", true);
+    indVar = "BMI";
+    depVar = "Batting Average";
+    update(yHandle);
+    moveHandle(dataset, 0.5)  });
+  
+d3.selectAll("#bmiHomeRuns")
+  .on("click", function() {
+    d3.select("#radio-BMI").property("checked", true);
+    d3.select("#radio-HomeRuns").property("checked", true);
+    indVar = "BMI";
+    depVar = "Home Runs";
+    update(yHandle);
+    moveHandle(dataset, 0.5)  });
+  
+d3.selectAll("#weightHomeRuns")
+  .on("click", function() {
+    d3.select("#radio-Weight").property("checked", true);
+    d3.select("#radio-HomeRuns").property("checked", true);
+    indVar = "Weight";
+    depVar = "Home Runs";
+    update(yHandle);
+    moveHandle(dataset, 0.5)  });
+    
+d3.selectAll("#heightHomeRuns")
+  .on("click", function() {
+    d3.select("#radio-Height").property("checked", true);
+    d3.select("#radio-HomeRuns").property("checked", true);
+    indVar = "Height";
+    depVar = "Home Runs";
+    update(yHandle);
+    moveHandle(dataset, 0.5)  });
+  
+d3.selectAll("#zeroHomeRuns")
+  .on("click", function() {
+    d3.select("#radio-Height").property("checked", true);
+    d3.select("#radio-HomeRuns").property("checked", true);
+    indVar = "Height";
+    depVar = "Home Runs";
+    update(yHandle);
+    moveHandle(dataset, 0.25)
+  });
+  
+d3.selectAll("#zeroBattingAverage")
+  .on("click", function() {
+    d3.select("#radio-Height").property("checked", true);
+    d3.select("#radio-BattingAverage").property("checked", true);
+    indVar = "Height";
+    depVar = "Batting Average";
+    update(yHandle);
+    moveHandle(dataset, 0.23)
+  });
+///////// Functions ////////////////
+
+function introduction() {
+  var delay = 2000;
+  var duration = 1000;
+  depVar = "Batting Average";
+  
+  moveHandle(dataset, 0.5);
+  update(yHandle);
+  
+  d3.select("#tooltip")
+    .style("left", "180px")
+    .style("top", "180px")
+    
+  //Show the tooltip
+  d3.select("#tooltip").classed("hidden", false);
+  
+  d3.select("#tooltip")
+    .select("#value")
+    .text("");
+  
+  d3.select("#tooltip")
+    .transition()
+    .duration(duration)
+    .style("left", "180px")
+    .style("top", "180px")
+    .select("#title")
+    .text("Look at these batting averages");
+  
+
+    
+  d3.select("#tooltip")
+    .transition(moveHandle(dataset, 0.9))
+    .delay(1000)
+    .duration(duration)
+    .style("left", "185px")
+    .style("top", "535px")
+    .select("#title")
+    .text("Left Handers Seem to have a higher batting average");;
+    //.remove();
+
+  
+
+}
+
+
+//Function for converting CSV values from strings to Numbers
+function rowConverter(d) {
+  d["Batting Average"] = +d.avg;
+  d["Handedness"] = d.handedness;
+  d["Height"] = +d.height;
+  d["Home Runs"] = +d.HR;
+  d["Weight"] = +d.weight;
+  d["BMI"] = +d.weight/(d.height*d.height)*703;
+  return d;
+};
+
+function update(handlePosition) {
+  yHandle = handlePosition;
+  handle.attr("cy", sliderScale(yHandle));
+  updateScatterPlot(dataset);
+  drawBoxPlot(createBoxPlotData(dataset));
+  drawBarPlot(createBarPlotData(dataset));
+}
+
+function createScatterPlotData(data) {
+  var scatterPlotData = []
+  for (var i = 0; i<data.length; i++) {
+    var x = data[i][indVar];
+    var y = data[i][depVar];
+    scatterPlotData.push([x, y]);
+  }
+  return scatterPlotData;
+}
+
+function drawScatterPlot(data) {
+  //Update scale domains
+  xScale.domain(d3.extent(data, function(d) {return d[indVar]})).nice();
+  var yMin = d3.min([d3.min(dataset, function(d) {return d[depVar]}) ,
+                    calculateQuantiles(dataset, depVar).whiskers[0]]);
+  var yMax = d3.max([d3.max(dataset, function(d) {return d[depVar]}) ,
+                    calculateQuantiles(dataset, depVar).whiskers[1]]);
+  yScale.domain([yMin, yMax]).nice();
+  
+  //Create circles
+  var circles = scatterPlot.append("g")
+    .selectAll("circle")
+    .data(data)
+    
+  circles.enter().append("circle")
+    .attr("class", "circles")
+    .attr("cx", function(d) {
+  		return xScale(d[indVar]);
+  	})
+  	.attr("cy", function(d) {
+  	  return yScale(d[depVar]);
+	  })
+  	.attr("r", 3)
+	  .style("fill", "red")
+	  .style("stroke"," lightgrey" ).style("stroke-width","1px")
+    .on("mouseover", function(d) {
+      //Get this circle's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("cx"));
+			var yPosition = parseFloat(+d3.select(this).attr("cy"));
+			
+			var playerName = d["name"];
+      var size = d["Height"] + " inches, " + d["Weight"] + " lbs, " + d["Handedness"] + " Handed"
+			var stats = d["Batting Average"] + " Avg " + d["Home Runs"] + " HR" ;
+			
+			//Update the tooltip position and value
+			d3.select("#playerTooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#name")
+				.text(playerName);
+			
+			d3.select("#size")
+			  .text(size)
+				
+			d3.select("#stats")
+				.text(stats);
+			   
+			//Show the tooltip
+			d3.select("#playerTooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#playerTooltip").classed("hidden", true);
+		});
+		  
+	// Draw the Vertical Box Plot
+  drawVerticalBoxPlot(createScatterPlotData(data));
+
+  // Draw the Slider
+  drawSlider(data);
+	
+	// Filter the Circles
+  var topSelections = scatterPlot.selectAll(".circles")
+  .filter(function(d) {
+      return d[depVar] >= yHandle;
+    })
+    .style("fill", "red");
+          
+  var bottomSelections = scatterPlot.selectAll(".circles")
+    .filter(function(d) {
+      return d[depVar] < yHandle;
+    })
+    .style("fill", "black");
+    
+  pHandle = (bottomSelections._groups[0].length/
+    (topSelections._groups[0].length + bottomSelections._groups[0].length));
+	 
+  			
+  //Create X axis
+  scatterPlot.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + (h - padding) + ")")
+  	.call(xAxis);
+  	
+  //Label X axis
+  scatterPlot.append("text")
+    .attr("class", "x axis text")
+    .attr("transform",
+          "translate(" + (w/2) + " ," + (h - 5) + ")")
+    .style("text-anchor", "middle")
+    .style("font", "10px sans-serif")
+    .text(indVar);
+  			
+  //Create Y axis
+  scatterPlot.append("g")
+  	.attr("class", "y axis")
+  	.attr("transform", "translate(" + padding + ",0)")
+  	.call(yAxis);
+  	
+  //Label Y axis
+  scatterPlot.append("text")
+    .attr("class", "y axis text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0 )
+    .attr("x",0 - (heightScatterPlot / 2))
+    .attr("dy", "1em")
+    .style("text-anchor", "middle")
+    .style("font", "10px sans-serif")
+    .text(depVar);
+
+}
+
+function updateScatterPlot(data) {
+  //Update scale domains
+  xScale.domain(d3.extent(data, function(d) {return d[indVar];})).nice();
+  var yMin = d3.min([d3.min(dataset, function(d) {return d[depVar]}) ,
+                    calculateQuantiles(dataset, depVar).whiskers[0]]);
+  var yMax = d3.max([d3.max(dataset, function(d) {return d[depVar]}) ,
+                    calculateQuantiles(dataset, depVar).whiskers[1]]);
+  yScale.domain([yMin, yMax]).nice();
+  sliderScale.domain(yScale.domain()).nice();
+
+    // Update X axis
+  scatterPlot.select(".x.axis")
+    .transition()
+    .duration(1000)
+    .call(xAxis);
+    
+  scatterPlot.select(".x.axis.text")
+    .transition()
+    .duration(1000)
+    .text(indVar);
+    
+  // Update Y axis
+  scatterPlot.select(".y.axis")
+    .transition()
+    .duration(1000)
+    .call(yAxis);
+    
+  scatterPlot.select(".y.axis.text")
+    .transition()
+    .duration(1000)
+    .text(depVar);
+    
+  // Update Slider axis
+  scatterPlot.select(".slider.axis")
+    .transition()
+    .duration(1000)
+    .call(sliderAxis);
+    
+  // Update yHandle
+  yHandle = sliderScale.invert(scatterPlot.select(".handle").attr("cy"));
+  
+  //Update circles
+  scatterPlot.selectAll("circle")
+    .data(data) //Update with new data
+    .transition() //Transition from old to new
+    .duration(1000) //Length of transition
+    .attr("cx", function(d) {
+  		return xScale(d[indVar]);
+  	})
+  	.attr("cy", function(d) {
+  	  return yScale(d[depVar]);
+	  });
+  
+  var topSelections = scatterPlot.selectAll(".circles")
+    .filter(function(d) {
+      return d[depVar] >= yHandle;
+    })
+    .style("fill", "red");
+          
+  var bottomSelections = scatterPlot.selectAll(".circles")
+    .filter(function(d) {
+      return d[depVar] < yHandle;
+    })
+    .style("fill", "black");
+  
+  //Update pHandle
+  pHandle = (bottomSelections._groups[0].length/
+    (topSelections._groups[0].length + bottomSelections._groups[0].length));
+    
+  // Update Vertical Box Plot
+  var boxPlotData = calculateQuantiles(data, depVar);
+  
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .selectAll(".verticalLine")
+    .attr("y1", yScale(boxPlotData.whiskers[1]))
+    .attr("y2", yScale(boxPlotData.whiskers[0]));
+
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .selectAll(".iqrRect")
+    .attr("y", yScale(boxPlotData.quantiles[2]))
+    .attr("height", yScale(boxPlotData.quantiles[0]) - yScale(boxPlotData.quantiles[2]));
+  
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .select(".medianLine")
+    .attr("y1", yScale(boxPlotData.quantiles[1]))
+    .attr("y2", yScale(boxPlotData.quantiles[1]));
+
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .select(".lowerQuartileLine")
+    .attr("y1", yScale(boxPlotData.quantiles[0]))
+    .attr("y2", yScale(boxPlotData.quantiles[0]));
+    
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .select(".upperQuartileLine")
+    .attr("y1", yScale(boxPlotData.quantiles[2]))
+    .attr("y2", yScale(boxPlotData.quantiles[2]));
+
+
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .select(".topWhisker")
+    .attr("y1", yScale(boxPlotData.whiskers[1]))
+    .attr("y2", yScale(boxPlotData.whiskers[1]));
+    
+  scatterPlot.select(".boxPlot")
+    .transition()
+    .duration(1000)
+    .select(".bottomWhisker")
+    .attr("y1", yScale(boxPlotData.whiskers[0]))
+    .attr("y2", yScale(boxPlotData.whiskers[0]));
+    
+}
+
+
+function drawSlider(data) {
+
+  //Define Slider
+  var slider = scatterPlot.append("g")
+      .attr("class", "slider")
+      .attr("transform", "translate(" + (w-1.5*padding) + "," + padding + ")");
+  
+  //Update Domain
+  sliderScale.domain(yScale.domain()).nice();
+  
+  //Create Slider
+  slider.append("line")
+      .attr("class", "track")
+      .attr("y1", sliderScale.range()[0])
+      .attr("y2", sliderScale.range()[1])
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-inset")
+    .select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+      .attr("class", "track-overlay")
+      .call(d3.drag()
+        .on("start.interrupt", function() { slider.interrupt(); })
+        .on("start drag", function() { update(sliderScale.invert(d3.event.y)); })
+      );
+  	
+  slider.insert("g", ".track-overlay")
+    .attr("class", "slider axis")
+    .attr("transform", "translate(" + 9 + ", 0)")
+    .call(sliderAxis);
+  
+  //Create handle
+  handle = slider.insert("circle", ".track-overlay")
+      .attr("class", "handle")
+      .attr("r", 9)
+      .attr("cy", sliderScale(yHandle));
+}
+
+function moveHandle(data, percentile) {
+  //Moves slider handle to specified percentile
+  var values = data.map(function(d) {return d[depVar]});
+  values = values.sort(function(a,b) {return a-b});
+  yHandle = d3.quantile(values, percentile);
+  update(yHandle);
+}
+
+function drawVerticalBoxPlot(data) {
+  
+  var boxPlotData = calculateQuantiles(data, 1);
+  yHandle = boxPlotData.quantiles[1];
+  
+  var boxPlot = scatterPlot.append("g")
+    .attr("class", "boxPlot")
+    .attr("transform", "translate(" + (w - 2.5*padding) + ", 0)");
+    
+  var verticalLine = boxPlot.append("line")
+    .attr("class", "verticalLine")
+    .attr("x1", 0)
+    .attr("y1", yScale(boxPlotData.whiskers[1]))
+    .attr("x2", 0)
+    .attr("y2", yScale(boxPlotData.whiskers[0]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none");
+    
+  var iqrRect = boxPlot.append("rect")
+    .attr("class", "iqrRect")
+    .attr("x", -barWidth/2)
+    .attr("y", yScale(boxPlotData.quantiles[2]))
+    .attr("width", barWidth)
+    .attr("height", yScale(boxPlotData.quantiles[0]) - yScale(boxPlotData.quantiles[2]))
+    .attr("fill", "white")
+    .attr("stroke", "red")
+    .attr("stroke-width", 5);
+    
+  var medianLine = boxPlot.append("line")
+    .attr("class", "medianLine")
+    .attr("x1", -barWidth/2)
+    .attr("y1", yScale(boxPlotData.quantiles[1]))
+    .attr("x2", barWidth/2)
+    .attr("y2", yScale(boxPlotData.quantiles[1]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + w/2);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + 50);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Median");
+				
+			d3.select("#value")
+				.text(yScale.invert(+d3.select(this).attr("y1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+		
+  var lowerQuartileLine = boxPlot.append("line")
+    .attr("class", "lowerQuartileLine")
+    .attr("x1", -barWidth/2)
+    .attr("y1", yScale(boxPlotData.quantiles[0]))
+    .attr("x2", barWidth/2)
+    .attr("y2", yScale(boxPlotData.quantiles[0]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + w/2);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + 50);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Lower Quartile");
+				
+			d3.select("#value")
+				.text(yScale.invert(+d3.select(this).attr("y1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+		
+  var upperQuartileLine = boxPlot.append("line")
+    .attr("class", "upperQuartileLine")
+    .attr("x1", -barWidth/2)
+    .attr("y1", yScale(boxPlotData.quantiles[2]))
+    .attr("x2", barWidth/2)
+    .attr("y2", yScale(boxPlotData.quantiles[2]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + w/2);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + 50);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Upper Quartile");
+				
+			d3.select("#value")
+				.text(yScale.invert(+d3.select(this).attr("y1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+    
+  var topWhisker = boxPlot.append("line")
+    .attr("class", "topWhisker")
+    .attr("x1", -barWidth/2)
+    .attr("y1", yScale(boxPlotData.whiskers[1]))
+    .attr("x2", barWidth/2)
+    .attr("y2", yScale(boxPlotData.whiskers[1]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + w/2);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + 50);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Upper Whisker");
+				
+			d3.select("#value")
+				.text(yScale.invert(+d3.select(this).attr("y1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+    
+  var bottomWhisker = boxPlot.append("line")
+    .attr("class", "bottomWhisker")
+    .attr("x1", -barWidth/2)
+    .attr("y1", yScale(boxPlotData.whiskers[0]))
+    .attr("x2", barWidth/2)
+    .attr("y2", yScale(boxPlotData.whiskers[0]))
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + w/2);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + 50);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Lower Whisker");
+				
+			d3.select("#value")
+				.text(yScale.invert(+d3.select(this).attr("y1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+    
+}
+
+
+///////// Draw Horizontal Box Plots ////////
+
+var xBox = d3.scaleLinear()
+    .range(xScale.range());
+    
+var yBox = d3.scaleBand()
+    .rangeRound([heightBoxPlot, 0])
+    .domain(dataSelections)
+    .padding(0.2);
+
+function drawBoxPlot(data) {
+  
+  // Update Scale Domain
+  xBox.domain(xScale.domain());
+  
+  // Draw the Whiskers
+  var horizontalLine = boxPlot.selectAll(".horizontalLine")
+    .data(data);
+    
+  horizontalLine
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.whiskers[0]) || 0})
+    .attr("x2", function(d) {return xBox(d.whiskers[1]) || 0});
+    
+  horizontalLine.enter().append("line")
+    .attr("class", "horizontalLine")
+    .attr("x1", function(d) {return xBox(d.whiskers[0]) || 0})
+    .attr("y1", function(d) {return yBox(d.name)+yBox.bandwidth()/2})
+    .attr("x2", function(d) {return xBox(d.whiskers[1]) || 0} )
+    .attr("y2", function(d) {return yBox(d.name)+yBox.bandwidth()/2})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none");
+  
+  var leftWhisker = boxPlot.selectAll(".leftWhisker")
+    .data(data);
+    
+  leftWhisker
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.whiskers[0]) || 0})
+    .attr("x2", function(d) {return xBox(d.whiskers[0]) || 0});
+    
+  leftWhisker.enter().append("line")
+    .attr("class", "leftWhisker")
+    .attr("x1", function(d) {return xBox(d.whiskers[0])} || 0)
+    .attr("y1", function(d) {return yBox(d.name)})
+    .attr("x2", function(d) {return xBox(d.whiskers[0])} || 0)
+    .attr("y2", function(d) {return yBox(d.name) + yBox.bandwidth()})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + padding);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + heightScatterPlot + 75);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Lower Whisker");
+				
+			d3.select("#value")
+				.text(xBox.invert(+d3.select(this).attr("x1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+    
+  var rightWhisker = boxPlot.selectAll(".rightWhisker")
+    .data(data);
+  
+  rightWhisker
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.whiskers[1]) || 0})
+    .attr("x2", function(d) {return xBox(d.whiskers[1]) || 0});
+  
+  rightWhisker.enter().append("line")
+    .attr("class", "rightWhisker")
+    .attr("x1", function(d) {return xBox(d.whiskers[1]) || 0})
+    .attr("y1", function(d) {return yBox(d.name)})
+    .attr("x2", function(d) {return xBox(d.whiskers[1]) || 0})
+    .attr("y2", function(d) {return yBox(d.name) + yBox.bandwidth()})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") - padding - 200);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + heightScatterPlot + 75);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Upper Whisker");
+				
+			d3.select("#value")
+				.text(xBox.invert(+d3.select(this).attr("x1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+  
+
+  // Draw the interquartile box
+  var iqrRect = boxPlot.selectAll(".iqrRect")
+      .data(data);
+      
+  iqrRect
+    .transition()
+    .duration(1000)
+    .attr("x", function(d) {return (xBox(d.quantiles[0]) || 0)})
+    .attr("width", function(d) { return (xBox(d.quantiles[2]) - xBox(d.quantiles[0]) || 0);});
+
+  iqrRect.enter().append("rect")
+    .attr("class", "iqrRect")
+    .attr("x", function(d) {return (xBox(d.quantiles[0]) || 0)})
+    .attr("y", function(d) { return yBox(d.name); })
+    .attr("width", function(d) { return (xBox(d.quantiles[2]) - xBox(d.quantiles[0]) || 0);})
+    .attr("height", yBox.bandwidth())
+    .attr("fill", "white")
+    .attr("stroke", "red")
+    .attr("stroke-width", 5);
+    
+  // Draw the median Line
+  var medianLine = boxPlot.selectAll(".medianLine")
+    .data(data);
+  
+  medianLine
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.quantiles[1]) || 0})
+    .attr("x2", function(d) {return xBox(d.quantiles[1]) || 0});
+    
+  medianLine.enter().append("line")
+    .attr("class", "medianLine")
+    .attr("x1", function(d) {return xBox(d.quantiles[1]) || 0})
+    .attr("y1", function(d) {return yBox(d.name)})
+    .attr("x2", function(d) {return xBox(d.quantiles[1]) || 0})
+    .attr("y2", function(d) {return yBox(d.name) + yBox.bandwidth()})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + padding);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + heightScatterPlot + 75);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("Median");
+				
+			d3.select("#value")
+				.text(xBox.invert(+d3.select(this).attr("x1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+		
+  // Draw the lower Quartile Line
+  var lowerQuartileLine = boxPlot.selectAll(".lowerQuartileLine")
+    .data(data);
+  
+  lowerQuartileLine
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.quantiles[0]) || 0})
+    .attr("x2", function(d) {return xBox(d.quantiles[0]) || 0});
+    
+  lowerQuartileLine.enter().append("line")
+    .attr("class", "lowerQuartileLine")
+    .attr("x1", function(d) {return xBox(d.quantiles[0]) || 0})
+    .attr("y1", function(d) {return yBox(d.name)})
+    .attr("x2", function(d) {return xBox(d.quantiles[0]) || 0})
+    .attr("y2", function(d) {return yBox(d.name) + yBox.bandwidth()})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + padding);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + heightScatterPlot + 75);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("25th Percentile");
+				
+			d3.select("#value")
+				.text(xBox.invert(+d3.select(this).attr("x1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+		
+  // Draw the Upper Quartile Line
+  var upperQuartileLine = boxPlot.selectAll(".upperQuartileLine")
+    .data(data);
+  
+  upperQuartileLine
+    .transition()
+    .duration(1000)
+    .attr("x1", function(d) {return xBox(d.quantiles[2]) || 0})
+    .attr("x2", function(d) {return xBox(d.quantiles[2]) || 0});
+    
+  upperQuartileLine.enter().append("line")
+    .attr("class", "upperQuartileLine")
+    .attr("x1", function(d) {return xBox(d.quantiles[2]) || 0})
+    .attr("y1", function(d) {return yBox(d.name)})
+    .attr("x2", function(d) {return xBox(d.quantiles[2]) || 0})
+    .attr("y2", function(d) {return yBox(d.name) + yBox.bandwidth()})
+    .attr("stroke", "red")
+    .attr("stroke-width", 5)
+    .attr("fill", "none")
+    .on("mouseover", function(d) {
+      //Get this bar's x/y values, then augment for the tooltip
+			var xPosition = parseFloat(+d3.select(this).attr("x1") + padding);
+			var yPosition = parseFloat(+d3.select(this).attr("y1") + heightScatterPlot + 75);
+
+			//Update the tooltip position and value
+			d3.select("#tooltip")
+				.style("left", xPosition + "px")
+				.style("top", yPosition + "px")
+				.select("#title")
+				.text("75th Percentile");
+				
+			d3.select("#value")
+				.text(xBox.invert(+d3.select(this).attr("x1")));
+			   
+			//Show the tooltip
+			d3.select("#tooltip").classed("hidden", false);
+    })
+	  .on("mouseout", function() {
+			//Hide the tooltip
+			d3.select("#tooltip").classed("hidden", true);
+		});
+    
+  // Add labels
+  var label = boxPlot.selectAll(".label")
+    .data(data);
+    
+  label
+    .transition()
+    .duration(1000)
+    .text(function(d) {return d.label});
+    
+  label.enter().append("text")
+    .attr("class", "label")
+    .attr("x", w - 35)
+    .attr("y", function(d) {return yBox(d.name) + yBox.bandwidth()/2})
+    .style("text-anchor", "middle")
+    .style("font", "10px sans-serif")
+    .text(function(d) {return d.label});
+
+
+};
+
+
+function createBoxPlotData(data) {
+  
+  var upperPoints = data.
+    filter(function(d) {
+      return d[depVar] >= yHandle;
+    });
+  
+  var lowerPoints = data.
+    filter(function(d) {
+      return d[depVar] < yHandle;
+    });
+  
+  var allData = calculateQuantiles(data, indVar);
+  var upperData = calculateQuantiles(upperPoints, indVar);
+  var lowerData = calculateQuantiles(lowerPoints, indVar);
+  
+  allData.name = dataSelections[2];
+  upperData.name = dataSelections[1];
+  lowerData.name = dataSelections[0];
+  
+  allData.label = "All Players";
+  upperData.label = "Top "  + d3.format(".0%")(1-pHandle);
+  lowerData.label = "Bottom " + d3.format(".0%")(pHandle);
+  
+  return [allData,
+          upperData,
+          lowerData];
+};
+
+function calculateQuantiles(data, axis) {
+  points = [];
+  for (i=0; i<data.length; i++) {
+    points.push(data[i][axis]);
+  }
+  boxPlotData = {};
+  points = points.sort(function(a,b) {return a-b});
+  boxPlotData["points"] = points;
+  boxPlotData["quantiles"] =
+    [d3.quantile(points, 0.25), d3.quantile(points, 0.5), d3.quantile(points, 0.75)];
+  boxPlotData["whiskers"] =
+    [d3.quantile(points, 0.25) - 1.5*(d3.quantile(points, 0.75) - d3.quantile(points, 0.25)),
+    d3.quantile(points, 0.75) + 1.5*(d3.quantile(points, 0.75) - d3.quantile(points, 0.25))];
+  return boxPlotData;
+};
+
+/////// Draw Stacked Bar Plots ///////
+var hands = "LBR".split("");
+
+var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+var xBar = d3.scaleLinear()
+    .rangeRound([padding,w - 2* padding])
+
+var yBar = d3.scaleBand()
+    .rangeRound([heightBarPlot, 0])
+    .domain(dataSelections)
+    .padding(0.1);
+
+var stack = d3.stack()
+    .keys(hands)
+    .order(d3.stackOrderNone)
+    .offset(d3.stackOffsetExpand);
+
+
+function drawBarPlot(data){
+
+  // update the y scale
+  //yBar.domain([0, jz.arr.max(data.map(function(d){ return d.sum }))]);
+
+  // each data column (a.k.a "key" or "series") needs to be iterated over
+  hands.forEach(function(key, key_index){
+
+    var bar = barPlot.selectAll(".bar-" + key)
+        .data(stack(data)[key_index], function(d){ return d.data.name + "-" + key; });
+        
+    // var statMedian = function(d) {
+    //   return d.median;
+    //};
+        
+    bar
+      .transition()
+      .duration(1000)
+        .attr("x", function(d){ return xBar(d[0]); })
+        .attr("y", function(d){ return yBar(d.data.name); })
+        .attr("width", function(d) {
+  		    return (xBar(d[1]) - xBar(d[0])) || 0 });
+
+    bar.enter().append("rect")
+      .attr("class", function(d){ return "bar bar-" + key; })
+      .attr("x", function(d){ return xBar(d[0]); })
+      .attr("y", function(d){ return yBar(d.data.name); })
+      .attr("width", function(d) {
+  		      return (xBar(d[1]) - xBar(d[0])) || 0})
+      .attr("height", yBar.bandwidth())
+      .attr("fill", function(d){ return color(key); })
+      .on("mouseover", function(d) {
+        //Get this bar's x/y values, then augment for the tooltip
+  			var xPosition = parseFloat(+d3.select(this).attr("x") + padding);
+  			var yPosition = parseFloat(+d3.select(this).attr("y") + heightScatterPlot + heightBoxPlot + 120);
+  
+  			//Update the tooltip position and value
+  			d3.select("#tooltip")
+  				.style("left", xPosition + "px")
+  				.style("top", yPosition + "px")
+  				.select("#title")
+  				.text("Median " + depVar);
+  				
+  			d3.select("#value")
+  				.text(d[1]);
+  			   
+  			//Show the tooltip
+  			d3.select("#tooltip").classed("hidden", false);
+      })
+  	  .on("mouseout", function() {
+  			//Hide the tooltip
+  			d3.select("#tooltip").classed("hidden", true);
+  		});
+        
+    // Add percent labels
+    var percentLabel = barPlot.selectAll(".percentLabel-" + key)
+      .data(stack(data)[key_index], function(d){ return d.data.name + "-" + key; });
+  
+    percentLabel
+      .transition()
+      .duration(1000)
+      .attr("x", function(d){ return (0.5*(xBar(d[0]) + xBar(d[1]))) || 0; })
+      .text(function(d) {return d3.format(".0%")(d[1]-d[0])});
+    
+    percentLabel.enter().append("text")
+      .attr("class", function(d){ return "percentLabel-" + key; })
+      .attr("x", function(d){ return 0.5*(xBar(d[0]) + xBar(d[1])); })
+      .attr("y", function(d){ return yBar(d.data.name) + yBar.bandwidth()/2; })
+      .style("text-anchor", "middle")
+      .style("font", "10px sans-serif")
+      .text(function(d) {return d3.format(".0%")(d[1]-d[0])});
+
+    
+  });
+
+  // // Add labels
+  // var label = barPlot.selectAll(".label")
+  //   .data(data);
+    
+  // label
+  //   .transition()
+  //   .duration(1000)
+  //   .text(function(d) {return d.label});
+    
+  // label.enter().append("text")
+  //   .attr("class", "label")
+  //   .attr("x", w - 35)
+  //   .attr("y", function(d) {return yBar(d.name) + yBar.bandwidth()/2})
+  //   .style("text-anchor", "middle")
+  //   .style("font", "10px sans-serif")
+  //   .text(function(d) {return d.label});
+    
+    
+  // Add Legend
+  var legend = barPlot.selectAll(".legend")
+    .data(data)
+    
+  legend.enter().append("rect")
+    .attr("class", "legend")
+    .attr("x", w-50)
+    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+    .attr("width", 19)
+    .attr("height", 19)
+    .attr("fill", function(d , i){ return color(hands[i]); });
+    
+  legend.enter().append("text")
+    .attr("class", "legend")
+    .attr("font-family", "sans-serif")
+    .attr("font-size", 10)
+    .attr("text-anchor", "end")
+    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; })
+    .attr("x", w-50+12)
+    .attr("y", 9.5)
+    .attr("dy", "0.32em")
+    .text(function(d, i) { return hands[i]; });
+
+};
+
+			
+// Create Bar Plot Data
+function createBarPlotData(data) {
+
+  var upperPoints = data
+      .filter(function(d) {
+       return d[depVar] >= yHandle;
+      });
+  
+  var lowerPoints = data
+      .filter(function(d) {
+        return d[depVar] < yHandle;
+      });
+          
+  var allData = d3.nest()
+      .key(function(d) {return d['handedness'];})
+      .rollup(function(v) {return v.length})
+      .object(data);
+			  
+  var upperData = d3.nest()
+      .key(function(d) {return d['handedness'];})
+      .rollup(function(v) {return v.length})
+      .object(upperPoints);
+
+  var lowerData = d3.nest()
+      .key(function(d) {return d['handedness'];})
+      .rollup(function(v) {return v.length})
+      .object(lowerPoints);
+      
+  allData.name = dataSelections[2];
+  upperData.name = dataSelections[1];
+  lowerData.name = dataSelections[0];
+  
+  allData.label = "All Players";
+  upperData.label = "Top "  + d3.format(".0%")(1-pHandle);
+  lowerData.label = "Bottom " + d3.format(".0%")(pHandle);
+  
+  return [allData,
+          upperData,
+          lowerData];
+
+};
+
+  
+
+</script>
+</body>
+</html>
