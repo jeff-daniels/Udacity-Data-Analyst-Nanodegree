@@ -1,10 +1,12 @@
 
+
+
 # Data Visualization
 ## Make Effective Data Visualization
 Create a data visualization from a data set that tells a story or highlights trends or patterns in the data. Use d3.js to create the visualization. Work should be a reflection of the theory and practice of data visualization, such as visual encodings, design principles, and effective communication.
 
 ## Major League Baseball Player Performance:
-
+### *[Link to Visualization](https://bl.ocks.org/jeff-daniels/raw/5d113fa40c32029cf54b85bb805c0fc2/)*
 This visualization compares height, weight, body mass index (BMI),
 and handedness between Major League Baseball players and American men age
 20-29.  It should show that baseball players are much more likely to be
@@ -48,14 +50,14 @@ appearance of all the plots by sliding this thing around.  What was I doing if
 I was not turning up the bass or the volume?
 
 After the graph was explained to me, the slider filters the scatter plot along
-the y-axis and displays the seperate samples below in histograms, I saw that
+the y-axis and displays the separate samples below in histograms, I saw that
 this could be a nifty little way to explore data.  It was unlike any
 combination of graphs I had seen in excel.  You could quickly and intuitively
 adjust two groups of data to get an overall sense of how those two groups
 differed.  After I learned the graph worked I had a few constructive
 suggestions:
 
-  1. Label the axis.  The x-axis on the scatterplot needs to be known as a
+  1. Label the axis.  The x-axis on the scatter plot needs to be known as a
   player's physical characteristic.  The y-axis needs to be know as the
   performance we're interested in maximizing.  The histogram y-axis should be
   labelled as count.
@@ -72,7 +74,7 @@ suggestions:
 
 There is a lot of stuff going on in this graph.  I see it as a good reusable
 visualization that quickly explores a set of data.  In this simple set of data
-you have decided to forgoe drawing trendlines upon the scatter plot in order
+you have decided to forgo drawing trend lines upon the scatter plot in order
 to find correlations between player performance and their size and what hand
 of theirs is dominant.  Instead, you filter out the top players by performance
 and give a statistical snapshot of what these players are like.  It is a
@@ -114,7 +116,7 @@ The fonts you chose are lame.
 ## Resources:
 
 Good book for learning D3.  
-Tooltips using div learned from here.  
+Tool-tips using div learned from here.  
 Normalized Bar chart reference.  
 Interactive Data Visualization for the Web, 2nd Ed. by Scott Murray.
 
